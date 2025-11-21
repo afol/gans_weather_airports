@@ -75,6 +75,7 @@ select * from cities_airports_f;
 ```
 
 ## code python
+
 ```python
 import pandas as pd
 import requests
@@ -138,7 +139,9 @@ basic_info_df
 ```
 
 
+```python
 
+```
 
 ```python
 cities_unique_f = basic_info_df["city_name"].unique() 
@@ -146,16 +149,12 @@ cities_df_f = pd.DataFrame(data = cities_unique_f, columns = ["city_name"])
 
 ```
 
-
 ```python
 cities_df_f.to_sql('cities_f',
                  if_exists='append',
                  con=connection_string(),
                  index=False)
 ```
-
-
-
 
 ```python
 cities_from_sql_f = pd.read_sql("cities_f", con=connection_string())
@@ -178,10 +177,9 @@ geo_df_f.to_sql('geo_f',
                   index=False)
 ```
 
-
 ```python
 #sql
-def city_list_weather_sql(city_list):
+def city_list_weather_sql(city_list):    #api key eater!
     
     API = "f2df36bc0d3912bb55c79b2d3087e142"
     
@@ -202,22 +200,8 @@ def city_list_weather_sql(city_list):
     
     for e, elat, elon in zip(tmp_df.city_id, tmp_df.city_latitude, tmp_df.city_longitude):
         
-        tmp_r_lat = re.findall(r'\d+', elat)
-        tmp_r_lon = re.findall(r'\d+', elon)
-        if len(tmp_r_lat)<3:
-            tlat = 0
-        else:
-            tlat= float(tmp_r_lat[2])
-        if len(tmp_r_lon)<3:
-            tlon = 0
-        else:
-            tlon= float(tmp_r_lat[2])    
-        tmp_cl_lat = float(tmp_r_lat[0]) + float(tmp_r_lat[1])/60 + tlat/3600
-        tmp_cl_lon = float(tmp_r_lon[0]) + float(tmp_r_lon[1])/60 + tlon/3600                          #tmp_r_lon[0]+'.'+tmp_r_lon[1]
-        lat = round(tmp_cl_lat,2)
-        lon = round(tmp_cl_lon,2)
-        lat = tmp_cl_lat
-        lon = tmp_cl_lon
+        lat = lat_lon_transform(elat, elon)[0]
+        lon = lat_lon_transform(elat, elon)[1]
         
         #api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API key}
         weather_test = requests.get(f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&cnt=5&appid={API}&units=metric")
@@ -235,12 +219,10 @@ def city_list_weather_sql(city_list):
     return result_df
 ```
 
-
 ```python
 city_list_weather = cities_from_sql_f["city_name"]
 
 ```
-
 
 ```python
 
@@ -255,9 +237,8 @@ weather_data_df_f.to_sql('weather_data_f',
                           index=False)
 ```
 
-
 ```python
-def get_airports(latitudes, longitudes):
+def get_airports(latitudes, longitudes):  ## api key eater
   # API headers
   headers = {
       "X-RapidAPI-Key": "36beed95bamsh46a1d4b7e3ed4d0p16b0e3jsnc8ab4ff3f7dd",
@@ -287,6 +268,26 @@ def get_airports(latitudes, longitudes):
 
 
 ```python
+def lat_lon_transform(in_lat, in_lon):
+    tmp_r_lat = re.findall(r'\d+', in_lat)
+    tmp_r_lon = re.findall(r'\d+', in_lon)
+    if len(tmp_r_lat)<3:
+        tlat = 0
+    else:
+        tlat= float(tmp_r_lat[2])
+    if len(tmp_r_lon)<3:
+        tlon = 0
+    else:
+        tlon= float(tmp_r_lat[2])    
+    tmp_cl_lat = float(tmp_r_lat[0]) + float(tmp_r_lat[1])/60 + tlat/3600
+    tmp_cl_lon = float(tmp_r_lon[0]) + float(tmp_r_lon[1])/60 + tlon/3600                          #tmp_r_lon[0]+'.'+tmp_r_lon[1]
+    lat = round(tmp_cl_lat,2)
+    lon = round(tmp_cl_lon,2)
+    return [lat,lon]
+```
+
+
+```python
 #sql
 def get_latitudes_longitudes_sql():
     
@@ -306,28 +307,12 @@ def get_latitudes_longitudes_sql():
     
     for e, elat, elon in zip(tmp_df.city_id, tmp_df.city_latitude, tmp_df.city_longitude):
         
-        tmp_r_lat = re.findall(r'\d+', elat)
-        tmp_r_lon = re.findall(r'\d+', elon)
-        if len(tmp_r_lat)<3:
-            tlat = 0
-        else:
-            tlat= float(tmp_r_lat[2])
-        if len(tmp_r_lon)<3:
-            tlon = 0
-        else:
-            tlon= float(tmp_r_lat[2])    
-        tmp_cl_lat = float(tmp_r_lat[0]) + float(tmp_r_lat[1])/60 + tlat/3600
-        tmp_cl_lon = float(tmp_r_lon[0]) + float(tmp_r_lon[1])/60 + tlon/3600                          #tmp_r_lon[0]+'.'+tmp_r_lon[1]
-        lat = round(tmp_cl_lat,2)
-        lon = round(tmp_cl_lon,2)
-        
         tmp_cities_list.append(tmp_df["city_id"])
-        tmp_latitude_list.append(lat)
-        tmp_longitude_list.append(lon)
+        tmp_latitude_list.append(lat_lon_transform(elat, elon)[0])
+        tmp_longitude_list.append(lat_lon_transform(elat, elon)[1])
  
     return [tmp_latitude_list,tmp_longitude_list]
 ```
-
 
 ```python
 coordinates = get_latitudes_longitudes_sql()
@@ -336,53 +321,20 @@ longitudes = coordinates[1]
 
 ```
 
-
 ```python
-latitudes
-```
-
-
-
-
-```python
-longitudes
-```
-
-
-
-```python
-airports_df_f = get_airports(latitudes, longitudes)
+def get_icao_name_airports_df():  #api key eater!
+    airports_df_f = get_airports(latitudes, longitudes)
+    airports_df_f = airports_df_f.drop_duplicates()
+    icao_name_airports_df = airports_df_f[['icao','name']].copy()
+    icao_name_airports_df.dropna()
+    icao_name_airports_df[["airport_icao","airport_name"]] = pd.DataFrame(data = icao_name_airports_df)
+    return icao_name_airports_df[["airport_icao","airport_name"]]
 ```
 
 
 ```python
-airports_df_f = airports_df_f.drop_duplicates()
+icao_name_airports_df = get_icao_name_airports_df()
 ```
-
-
-```python
-airports_df_f
-```
-
-```python
-icao_name_airports_df = airports_df_f[['icao','name']].copy()
-icao_name_airports_df.dropna()
-icao_name_airports_df
-```
-
-
-```python
-icao_name_airports_df[["airport_icao","airport_name"]] = pd.DataFrame(data = icao_name_airports_df)
-```
-
-
-```python
-#icao_name_airports_df=icao_name_airports_df.drop(icao_name_airports_df.columns[[0,1]], axis = 1).copy()
-```
-
-
-
-
 
 ```python
 icao_name_airports_df.to_sql('airports_f',
@@ -391,38 +343,28 @@ icao_name_airports_df.to_sql('airports_f',
                               index=False)
 ```
 
-
-
 ```python
-icao_city_id_df[['icao','city_name']] = airports_df_f[['icao','municipalityName']].copy()#city_id, airport_icao
-icao_city_id_df.dropna()
-icao_city_id_df=icao_city_id_df.drop(icao_city_id_df.columns[[1]], axis = 1).copy()
-icao_city_id_df
-```
-
-
-
-```python
-city_name_id_df = pd.read_sql(f"""
+def get_city_id_airport_icao_df(df):
+    
+    icao_city_id_df= df[['icao','municipalityName']].copy().rename(columns={'municipalityName':'city_name'})  #city_id, airport_icao
+    icao_city_id_df.dropna()
+    
+    city_name_id_df = pd.read_sql(f"""
                 SELECT DISTINCT city_name, city_id
                 FROM cities_f
                 """,
                 con=connection_string())
-    
-city_name_id_df = pd.DataFrame(city_name_id_df)
-```
-
-
-```python
-tmp = city_name_id_df.merge(icao_city_id_df,
+    city_name_id_df = pd.DataFrame(city_name_id_df)
+    tmp = city_name_id_df.merge(icao_city_id_df,
                                    on = "city_name",
                                    how="left"
                                 )
+    tmp = tmp.drop(tmp.columns[[1]], axis = 1).copy()
+    return tmp
 ```
 
-
 ```python
-city_id_airport_icao_df = tmp.drop(tmp.columns[[1]], axis = 1).copy()
+city_id_airport_icao_df = get_city_id_airport_icao_df(airports_df_f)
 ```
 
 
@@ -433,7 +375,6 @@ city_id_airport_icao_df.to_sql('cities_airports_f',
                               index=False)
 ```
 
-
 ```python
 icao_iata_df = airports_df_f[['icao','iata']].copy()
 ```
@@ -441,7 +382,7 @@ icao_iata_df = airports_df_f[['icao','iata']].copy()
 
 ```python
 
-def get_arrivals_info(IATA):
+def get_arrivals_info(IATA):  # api key eater!
   from datetime import datetime  
   BER = IATA
   url = "https://aerodatabox.p.rapidapi.com/flights/airports/iata/BER/2025-12-04T20:00/2025-12-05T08:00"
@@ -471,44 +412,28 @@ def get_arrivals_info(IATA):
       arrival_info["flight_number"].append(flight_number)
       arrival_info["arrival_icao"].append(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA].values[0])
       result_df = pd.DataFrame(data = arrival_info).copy()
-  #print(str(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA]))
+  
   return result_df
 ```
 
-
-
 ```python
-airport_icao_df = pd.read_sql(f"""
+def get_flights_df():
+    airport_icao_df = pd.read_sql(f"""
                 SELECT DISTINCT airport_icao
                 FROM airports_f
                 """,
                 con=connection_string())
     
-airport_icao_df = pd.DataFrame(airport_icao_df)
+    airport_icao_df = pd.DataFrame(airport_icao_df)
+    airport_iata = []
+    for e in airport_icao_df["airport_icao"]:
+        airport_iata.append(icao_iata_df['iata'].loc[icao_iata_df['icao'] == e].values[0])
+    arrivals_list = []
+    for e in airport_iata:
+        arrivals_list.append(get_arrivals_info(e)) 
+    flights_df=pd.concat(arrivals_list)  
+    return flights_df
 ```
-
-
-```python
-airport_iata = []
-for e in airport_icao_df["airport_icao"]:
-    airport_iata.append(icao_iata_df['iata'].loc[icao_iata_df['icao'] == e].values[0]) 
-#airport_iata    
-```
-
-
-```python
-arrivals_list = []
-for e in airport_iata:
-    arrivals_list.append(get_arrivals_info(e))
-arrivals_list
-```
-
-
-
-```python
-flights_df=pd.concat(arrivals_list)
-```
-
 
 ```python
 flights_df.to_sql('flights_f',
@@ -518,5 +443,11 @@ flights_df.to_sql('flights_f',
 ```
 
 
-##  code Python
-```python
+
+
+
+
+
+
+
+
