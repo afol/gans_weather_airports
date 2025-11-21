@@ -1,6 +1,7 @@
 # gans_weather_airports
 data base structure:
-# code mysql
+## code mysql
+```sql
 -- Drop the database if it already exists
 DROP DATABASE IF EXISTS atd_testrun_f ;
 
@@ -71,13 +72,19 @@ select * from weather_data_f right join cities using(city_id);
 select * from flights_f;
 select * from airports_f;
 select * from cities_airports_f;
+```
 
-#  code
+## code python
+```python
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import re
 import datetime
+```
+
+
+```python
 def get_city_info_from_wiki(city_name): #test
   
   url = "https://en.wikipedia.org/wiki/" + city_name    
@@ -94,11 +101,19 @@ def get_city_info_from_wiki(city_name): #test
   tmp_dict["populations"] = soup.find(string="Population").find_next("td").get_text()
     
   return tmp_dict
+```
+
+
+```python
 def fill_non_relational_df(city_name,df=None): #df test
     dct = get_city_info_from_wiki(city_name)
     if df is None:
         return pd.DataFrame([dct])
     return pd.concat([df,pd.DataFrame([dct])]).reset_index(drop=True)
+```
+
+
+```python
 def connection_string():
     schema = "atd_testrun_f"
     host = "127.0.0.1"
@@ -107,6 +122,10 @@ def connection_string():
     port = 3306
 
     return  f'mysql+pymysql://{user}:{password}@{host}:{port}/{schema}'
+```
+
+
+```python
 basic_info_df = fill_non_relational_df('Vienna')
 basic_info_df = fill_non_relational_df('Berlin', basic_info_df)
 basic_info_df = fill_non_relational_df('Munich', basic_info_df)
@@ -116,23 +135,51 @@ basic_info_df = fill_non_relational_df('Bochum', basic_info_df)
 basic_info_df = fill_non_relational_df('London', basic_info_df)
 basic_info_df = fill_non_relational_df('Paris', basic_info_df)
 basic_info_df
+```
+
+
+
+
+```python
 cities_unique_f = basic_info_df["city_name"].unique() 
 cities_df_f = pd.DataFrame(data = cities_unique_f, columns = ["city_name"])
 
+```
+
+
+```python
 cities_df_f.to_sql('cities_f',
                  if_exists='append',
                  con=connection_string(),
                  index=False)
+```
+
+
+
+
+```python
 cities_from_sql_f = pd.read_sql("cities_f", con=connection_string())
+```
+
+
+```python
 geo_df_f = basic_info_df.merge(cities_from_sql_f,
                                    on = "city_name",
                                    how="left"
                                 )
 geo_df_f = geo_df_f.drop(columns=["city_name"])
+```
+
+
+```python
 geo_df_f.to_sql('geo_f',
                   if_exists='append',
                   con=connection_string(),
                   index=False)
+```
+
+
+```python
 #sql
 def city_list_weather_sql(city_list):
     
@@ -186,14 +233,30 @@ def city_list_weather_sql(city_list):
         result_df = pd.DataFrame(data = dct).copy()
  
     return result_df
+```
+
+
+```python
 city_list_weather = cities_from_sql_f["city_name"]
 
+```
+
+
+```python
 
 weather_data_df_f = city_list_weather_sql(city_list_weather)
+```
+
+
+```python
 weather_data_df_f.to_sql('weather_data_f',
                           if_exists='append',
                           con=connection_string(),
                           index=False)
+```
+
+
+```python
 def get_airports(latitudes, longitudes):
   # API headers
   headers = {
@@ -220,6 +283,10 @@ def get_airports(latitudes, longitudes):
       all_airports.append(airports)
 
   return pd.concat(all_airports, ignore_index=True)
+```
+
+
+```python
 #sql
 def get_latitudes_longitudes_sql():
     
@@ -259,21 +326,120 @@ def get_latitudes_longitudes_sql():
         tmp_longitude_list.append(lon)
  
     return [tmp_latitude_list,tmp_longitude_list]
+```
+
+
+```python
 coordinates = get_latitudes_longitudes_sql()
 latitudes = coordinates[0]
 longitudes = coordinates[1]
 
+```
+
+
+```python
 latitudes
+```
+
+
+
+
+```python
 longitudes
+```
+
+
+
+```python
 airports_df_f = get_airports(latitudes, longitudes)
+```
+
+
+```python
 airports_df_f = airports_df_f.drop_duplicates()
-icao_name_airports_df[["airport_icao","airport_name"]] = airports_df_f[['icao','name']].copy()
+```
+
+
+```python
+airports_df_f
+```
+
+```python
+icao_name_airports_df = airports_df_f[['icao','name']].copy()
 icao_name_airports_df.dropna()
+icao_name_airports_df
+```
+
+
+```python
+icao_name_airports_df[["airport_icao","airport_name"]] = pd.DataFrame(data = icao_name_airports_df)
+```
+
+
+```python
+#icao_name_airports_df=icao_name_airports_df.drop(icao_name_airports_df.columns[[0,1]], axis = 1).copy()
+```
+
+
+
+
+
+```python
 icao_name_airports_df.to_sql('airports_f',
                               if_exists='append',
                               con=connection_string(),
                               index=False)
+```
 
+
+
+```python
+icao_city_id_df[['icao','city_name']] = airports_df_f[['icao','municipalityName']].copy()#city_id, airport_icao
+icao_city_id_df.dropna()
+icao_city_id_df=icao_city_id_df.drop(icao_city_id_df.columns[[1]], axis = 1).copy()
+icao_city_id_df
+```
+
+
+
+```python
+city_name_id_df = pd.read_sql(f"""
+                SELECT DISTINCT city_name, city_id
+                FROM cities_f
+                """,
+                con=connection_string())
+    
+city_name_id_df = pd.DataFrame(city_name_id_df)
+```
+
+
+```python
+tmp = city_name_id_df.merge(icao_city_id_df,
+                                   on = "city_name",
+                                   how="left"
+                                )
+```
+
+
+```python
+city_id_airport_icao_df = tmp.drop(tmp.columns[[1]], axis = 1).copy()
+```
+
+
+```python
+city_id_airport_icao_df.to_sql('cities_airports_f',
+                              if_exists='append',
+                              con=connection_string(),
+                              index=False)
+```
+
+
+```python
+icao_iata_df = airports_df_f[['icao','iata']].copy()
+```
+
+
+```python
 
 def get_arrivals_info(IATA):
   from datetime import datetime  
@@ -305,9 +471,52 @@ def get_arrivals_info(IATA):
       arrival_info["flight_number"].append(flight_number)
       arrival_info["arrival_icao"].append(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA].values[0])
       result_df = pd.DataFrame(data = arrival_info).copy()
-  print(str(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA]))
+  #print(str(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA]))
   return result_df
+```
 
-arrivals_info_df_f = pd.DataFrame(data = arrivals_info_df_f)
 
-arrivals_info_df_f
+
+```python
+airport_icao_df = pd.read_sql(f"""
+                SELECT DISTINCT airport_icao
+                FROM airports_f
+                """,
+                con=connection_string())
+    
+airport_icao_df = pd.DataFrame(airport_icao_df)
+```
+
+
+```python
+airport_iata = []
+for e in airport_icao_df["airport_icao"]:
+    airport_iata.append(icao_iata_df['iata'].loc[icao_iata_df['icao'] == e].values[0]) 
+#airport_iata    
+```
+
+
+```python
+arrivals_list = []
+for e in airport_iata:
+    arrivals_list.append(get_arrivals_info(e))
+arrivals_list
+```
+
+
+
+```python
+flights_df=pd.concat(arrivals_list)
+```
+
+
+```python
+flights_df.to_sql('flights_f',
+                  if_exists='append',
+                  con=connection_string(),
+                  index=False)
+```
+
+
+##  code Python
+```python
