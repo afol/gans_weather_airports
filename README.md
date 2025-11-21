@@ -13,51 +13,51 @@ USE atd_testrun_f;
 
 -- Create the 'authors' table
 CREATE TABLE cities_f (
-    city_id INT AUTO_INCREMENT, -- Automatically generated ID for each author
-    city_name VARCHAR(255) NOT NULL, -- Name of the author
-    PRIMARY KEY (city_id) -- Primary key to uniquely identify each author
+    city_id INT AUTO_INCREMENT, -- 
+    city_name VARCHAR(255) NOT NULL, -- 
+    PRIMARY KEY (city_id) -- 
 );
 
 -- Create the 'books' table
 CREATE TABLE geo_f (
-    geo_id INT AUTO_INCREMENT, -- Automatically generated ID for each book
+    geo_id INT AUTO_INCREMENT, -- 
     country_name VARCHAR(255) NOT NULL,
-    city_latitude VARCHAR(255) NOT NULL, -- Title of the book
-    city_longitude VARCHAR(255) NOT NULL, -- Title of the book
+    city_latitude VARCHAR(255) NOT NULL, -- 
+    city_longitude VARCHAR(255) NOT NULL, -- 
     populations VARCHAR(255) NOT NULL,
-    city_id INT, -- ID of the author who wrote the book
-    PRIMARY KEY (geo_id), -- Primary key to uniquely identify each book
-    FOREIGN KEY (city_id) REFERENCES cities(city_id) -- Foreign key to connect each book to its author
+    city_id INT, -- 
+    PRIMARY KEY (geo_id), -- 
+    FOREIGN KEY (city_id) REFERENCES cities(city_id) -- 
 );
 
 CREATE TABLE weather_data_f (
-    city_id INT , -- Automatically generated ID for each author
-    temp VARCHAR(255) NOT NULL, -- Name of the author
+    city_id INT , -- 
+    temp VARCHAR(255) NOT NULL, -- 
     cond VARCHAR(255) NOT NULL,
     wind VARCHAR(255) NOT NULL,
     forecast_time timestamp,
     register_time timestamp,
-    FOREIGN KEY (city_id) REFERENCES cities(city_id) -- Primary key to uniquely identify each author
+    FOREIGN KEY (city_id) REFERENCES cities(city_id) -- 
 );
 #arrival_icao	departure_icao	flight_number	arrival_time
 CREATE TABLE flights_f (
-    flight_id INT AUTO_INCREMENT, -- Automatically generated ID for each author
-    arrival_icao VARCHAR(255) NOT NULL, -- Name of the author
+    flight_id INT AUTO_INCREMENT, -- 
+    arrival_icao VARCHAR(255) NOT NULL, -- 
     departure_icao VARCHAR(255) NOT NULL,
     flight_number VARCHAR(255) NOT NULL,
     arrival_time timestamp,
     PRIMARY KEY (flight_id), 
-    FOREIGN KEY (arrival_icao) REFERENCES airports(airport_icao) -- Primary key to uniquely identify each author
+    FOREIGN KEY (arrival_icao) REFERENCES airports(airport_icao) -- 
 );
 CREATE TABLE airports_f (
     airport_icao VARCHAR(255) NOT NULL,
-    airport_name VARCHAR(255) NOT NULL, -- Automatically generated ID for each author
-    PRIMARY KEY (airport_icao) -- Primary key to uniquely identify each author
+    airport_name VARCHAR(255) NOT NULL, --
+    PRIMARY KEY (airport_icao) --
 );
 CREATE TABLE cities_airports_f (
     city_id INT NOT NULL,
-    airport_icao VARCHAR(255) NOT NULL, -- Automatically generated ID for each author
-    FOREIGN KEY (city_id) REFERENCES cities(city_id), -- Primary key to uniquely identify each author
+    airport_icao VARCHAR(255) NOT NULL, -- 
+    FOREIGN KEY (city_id) REFERENCES cities(city_id), -- 
     FOREIGN KEY (airport_icao) REFERENCES airports(airport_icao)
 );
 
@@ -140,10 +140,6 @@ basic_info_df
 
 
 ```python
-
-```
-
-```python
 cities_unique_f = basic_info_df["city_name"].unique() 
 cities_df_f = pd.DataFrame(data = cities_unique_f, columns = ["city_name"])
 
@@ -181,7 +177,7 @@ geo_df_f.to_sql('geo_f',
 #sql
 def city_list_weather_sql(city_list):    #api key eater!
     
-    API = "f2df36bc0d3912bb55c79b2d3087e142"
+    API = "yyy"
     
     city_list_sql_str = ", ".join([ f"'{city}'" for city in city_list])
     
@@ -241,7 +237,7 @@ weather_data_df_f.to_sql('weather_data_f',
 def get_airports(latitudes, longitudes):  ## api key eater
   # API headers
   headers = {
-      "X-RapidAPI-Key": "36beed95bamsh46a1d4b7e3ed4d0p16b0e3jsnc8ab4ff3f7dd",
+      "X-RapidAPI-Key": "xxx",
       "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
   }
 
@@ -390,7 +386,7 @@ def get_arrivals_info(IATA):  # api key eater!
   querystring = {"withLeg":"true","direction":"Both","withCancelled":"true","withCodeshared":"true","withCargo":"true","withPrivate":"true","withLocation":"true"}
 
   headers = {
-    "x-rapidapi-key": "36beed95bamsh46a1d4b7e3ed4d0p16b0e3jsnc8ab4ff3f7dd"
+    "x-rapidapi-key": "xxx"
 ,
     "x-rapidapi-host": "aerodatabox.p.rapidapi.com"
   }
