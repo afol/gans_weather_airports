@@ -119,7 +119,7 @@ def connection_string():
     schema = "atd_testrun_f"
     host = "127.0.0.1"
     user = "ola"
-    password = "dupa"
+    password = "lol"
     port = 3306
 
     return  f'mysql+pymysql://{user}:{password}@{host}:{port}/{schema}'
