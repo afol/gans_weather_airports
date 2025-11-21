@@ -1,6 +1,6 @@
 # gans_weather_airports
 data base structure:
-
+# code mysql
 -- Drop the database if it already exists
 DROP DATABASE IF EXISTS atd_testrun_f ;
 
