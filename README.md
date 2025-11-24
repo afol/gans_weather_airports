@@ -51,6 +51,7 @@ CREATE TABLE flights_f (
 );
 CREATE TABLE airports_f (
     airport_icao VARCHAR(255) NOT NULL,
+    airport_iata VARCHAR(255) NOT NULL,
     airport_name VARCHAR(255) NOT NULL, --
     PRIMARY KEY (airport_icao) --
 );
@@ -86,7 +87,8 @@ import datetime
 
 
 ```python
-def get_city_info_from_wiki(city_name): #test
+#scrapes info abt population, coordinates and country name for a given city
+def get_city_info_from_wiki(city_name):    
   
   url = "https://en.wikipedia.org/wiki/" + city_name    
   headers = {'User-Agent': 'Chrome/134.0.0.0'}
@@ -106,7 +108,8 @@ def get_city_info_from_wiki(city_name): #test
 
 
 ```python
-def fill_non_relational_df(city_name,df=None): #df test
+#build a data frame entry with basic city info if no such exist, otherwise appends new city's info
+def fill_non_relational_df(city_name,df=None): 
     dct = get_city_info_from_wiki(city_name)
     if df is None:
         return pd.DataFrame([dct])
@@ -115,11 +118,12 @@ def fill_non_relational_df(city_name,df=None): #df test
 
 
 ```python
+#enable connecting to sql db
 def connection_string():
     schema = "atd_testrun_f"
     host = "127.0.0.1"
     user = "ola"
-    password = "lol"
+    password = "xxx"
     port = 3306
 
     return  f'mysql+pymysql://{user}:{password}@{host}:{port}/{schema}'
@@ -127,6 +131,7 @@ def connection_string():
 
 
 ```python
+#building df with basic city info
 basic_info_df = fill_non_relational_df('Vienna')
 basic_info_df = fill_non_relational_df('Berlin', basic_info_df)
 basic_info_df = fill_non_relational_df('Munich', basic_info_df)
@@ -140,10 +145,12 @@ basic_info_df
 
 
 ```python
+#getting rid of duplicates, taking city_name column and pushing such a df to sql tbl (cities_f)
 cities_unique_f = basic_info_df["city_name"].unique() 
 cities_df_f = pd.DataFrame(data = cities_unique_f, columns = ["city_name"])
 
 ```
+
 
 ```python
 cities_df_f.to_sql('cities_f',
@@ -152,12 +159,16 @@ cities_df_f.to_sql('cities_f',
                  index=False)
 ```
 
+
+
 ```python
+#reading from sql tbl 
 cities_from_sql_f = pd.read_sql("cities_f", con=connection_string())
 ```
 
 
 ```python
+#merging basic city info tbl with sql tbl cities_f in order to get cities_f primary key as a foreign key in geo_df_f (sql tbl geo_f)
 geo_df_f = basic_info_df.merge(cities_from_sql_f,
                                    on = "city_name",
                                    how="left"
@@ -167,17 +178,20 @@ geo_df_f = geo_df_f.drop(columns=["city_name"])
 
 
 ```python
+#pushing to sql tbl
 geo_df_f.to_sql('geo_f',
                   if_exists='append',
                   con=connection_string(),
                   index=False)
 ```
 
+
+
 ```python
-#sql
+#getting weather info from wiki and building a df
 def city_list_weather_sql(city_list):    #api key eater!
     
-    API = "yyy"
+    API = "xxxapikey"
     
     city_list_sql_str = ", ".join([ f"'{city}'" for city in city_list])
     
@@ -215,13 +229,16 @@ def city_list_weather_sql(city_list):    #api key eater!
     return result_df
 ```
 
+
 ```python
+#names of cities in sql tbl cities_f
 city_list_weather = cities_from_sql_f["city_name"]
 
 ```
 
-```python
 
+```python
+#building df with weather info for these cities and pushing it to sql tbl weather_data_f
 weather_data_df_f = city_list_weather_sql(city_list_weather)
 ```
 
@@ -233,11 +250,13 @@ weather_data_df_f.to_sql('weather_data_f',
                           index=False)
 ```
 
+
 ```python
+#getting airports data based on latitudes an longitudes off the given cities
 def get_airports(latitudes, longitudes):  ## api key eater
   # API headers
   headers = {
-      "X-RapidAPI-Key": "xxx",
+      "X-RapidAPI-Key": "yyyapikey",
       "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
   }
 
@@ -264,6 +283,7 @@ def get_airports(latitudes, longitudes):  ## api key eater
 
 
 ```python
+#formatting function for latitude and longitude
 def lat_lon_transform(in_lat, in_lon):
     tmp_r_lat = re.findall(r'\d+', in_lat)
     tmp_r_lon = re.findall(r'\d+', in_lon)
@@ -284,7 +304,7 @@ def lat_lon_transform(in_lat, in_lon):
 
 
 ```python
-#sql
+#getting list of latitudes and longitudes of the cities in cities_f sql tbl
 def get_latitudes_longitudes_sql():
     
     tmp_df = pd.read_sql(f"""
@@ -310,36 +330,54 @@ def get_latitudes_longitudes_sql():
     return [tmp_latitude_list,tmp_longitude_list]
 ```
 
+
 ```python
+#building list ofcoordinates using the get_latitudes_longitudes_sql() function
 coordinates = get_latitudes_longitudes_sql()
 latitudes = coordinates[0]
 longitudes = coordinates[1]
 
 ```
 
+
 ```python
-def get_icao_name_airports_df():  #api key eater!
+#getting airport info (api), putting icao, iata, name into a df
+def get_icao_iata_name_airports_df():  #api key eater!
     airports_df_f = get_airports(latitudes, longitudes)
     airports_df_f = airports_df_f.drop_duplicates()
-    icao_name_airports_df = airports_df_f[['icao','name']].copy()
-    icao_name_airports_df.dropna()
-    icao_name_airports_df[["airport_icao","airport_name"]] = pd.DataFrame(data = icao_name_airports_df)
-    return icao_name_airports_df[["airport_icao","airport_name"]]
+    icao_iata_name_airports_df = airports_df_f[['icao','iata','name']].copy()
+    icao_iata_name_airports_df.dropna()
+    icao_iata_name_airports_df = pd.DataFrame(data = icao_iata_name_airports_df).rename(columns={"icao":"airport_icao","iata":"airport_iata","name":"airport_name"})
+    return icao_iata_name_airports_df
+       
 ```
 
 
 ```python
-icao_name_airports_df = get_icao_name_airports_df()
+#building df and pushing to sql table airports_f (icao, iata, airport name)
+icao_iata_name_airports_df = get_icao_iata_name_airports_df()
 ```
 
+
 ```python
-icao_name_airports_df.to_sql('airports_f',
+icao_iata_name_airports_df
+```
+
+
+
+
+
+```python
+icao_iata_name_airports_df.to_sql('airports_f',                             #_iata !
                               if_exists='append',
                               con=connection_string(),
                               index=False)
 ```
 
+
+
 ```python
+#
 def get_city_id_airport_icao_df(df):
     
     icao_city_id_df= df[['icao','municipalityName']].copy().rename(columns={'municipalityName':'city_name'})  #city_id, airport_icao
@@ -359,7 +397,11 @@ def get_city_id_airport_icao_df(df):
     return tmp
 ```
 
+
+
+
 ```python
+#building df and pushing to sql table cities_airports_f (city_id, airport_name)
 city_id_airport_icao_df = get_city_id_airport_icao_df(airports_df_f)
 ```
 
@@ -371,13 +413,23 @@ city_id_airport_icao_df.to_sql('cities_airports_f',
                               index=False)
 ```
 
+
+
 ```python
-icao_iata_df = airports_df_f[['icao','iata']].copy()
+#building df with all airports codes based on the sql tbl
+icao_iata_df = pd.read_sql(f"""
+               SELECT DISTINCT airport_icao, airport_iata
+               FROM airports_f
+               """,
+               con=connection_string())
+    
+icao_iata_df = pd.DataFrame(icao_iata_df)
 ```
 
 
-```python
 
+```python
+#getting info abt flights based on iata code
 def get_arrivals_info(IATA):  # api key eater!
   from datetime import datetime  
   BER = IATA
@@ -386,7 +438,7 @@ def get_arrivals_info(IATA):  # api key eater!
   querystring = {"withLeg":"true","direction":"Both","withCancelled":"true","withCodeshared":"true","withCargo":"true","withPrivate":"true","withLocation":"true"}
 
   headers = {
-    "x-rapidapi-key": "xxx"
+    "x-rapidapi-key": "yyyapikey"
 ,
     "x-rapidapi-host": "aerodatabox.p.rapidapi.com"
   }
@@ -406,44 +458,42 @@ def get_arrivals_info(IATA):  # api key eater!
       arrival_info["arrival_time"].append(arrival_time)
       flight_number = e['number']
       arrival_info["flight_number"].append(flight_number)
-      arrival_info["arrival_icao"].append(icao_iata_df['icao'].loc[icao_iata_df['iata'] == IATA].values[0])
+      arrival_info["arrival_icao"].append(icao_iata_df['iata'].values[0])   #! - values ?
       result_df = pd.DataFrame(data = arrival_info).copy()
   
   return result_df
 ```
 
+
+
 ```python
-def get_flights_df():
-    airport_icao_df = pd.read_sql(f"""
-                SELECT DISTINCT airport_icao
+#building df with flights info for all iata codes found in sql tbl
+def get_flights_df():    #super api key eater!
+    airport_iata_df = pd.read_sql(f"""
+                SELECT DISTINCT airport_iata
                 FROM airports_f
                 """,
                 con=connection_string())
     
-    airport_icao_df = pd.DataFrame(airport_icao_df)
+    airport_iata_df = pd.DataFrame(airport_iata_df)
     airport_iata = []
-    for e in airport_icao_df["airport_icao"]:
-        airport_iata.append(icao_iata_df['iata'].loc[icao_iata_df['icao'] == e].values[0])
+    for e in airport_iata_df:
+        airport_iata.append(e)
     arrivals_list = []
-    for e in airport_iata:
+    for e in airport_iata["airport_iata"]:
         arrivals_list.append(get_arrivals_info(e)) 
     flights_df=pd.concat(arrivals_list)  
     return flights_df
 ```
 
+
+
 ```python
+#pushing flights data into sql tbl
 flights_df.to_sql('flights_f',
                   if_exists='append',
                   con=connection_string(),
                   index=False)
 ```
-
-
-
-
-
-
-
-
 
 
